@@ -1,15 +1,12 @@
-# Sample Hardhat Project
-
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.js
-```
-# defi_pokemon
-# defi_pokemon
+# Defi Pokemon
+## Getting Started
+1. Set Up Blockchain 
+    - Run `SEED_PHRASE=<MetaMask Secret Phrase> npx hardhat node` in one terminal window
+    - Run `npx hardhat run scripts/deploy.js --network localhost`
+    - This prints out 2 addresses, save these to `.env
+    ```
+    PUBLIC_NFT_CONTRACT_ADDRESS="..."
+    PUBLIC_MARKETPLACE_CONTRACT_ADDRESS="..."
+    ```
+    - Setup MetaMask with new Custom Network; 
+2. Go into frontend dir and run npm run dev
