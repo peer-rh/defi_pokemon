@@ -5,6 +5,7 @@
         getUserNFTs,
         getMarketplaceItems,
         createPokemonNFT,
+        listPokemonOnMarket,
     } from "$lib/meta-mask";
     import {
         PUBLIC_NFT_CONTRACT_ADDRESS,
@@ -199,27 +200,61 @@
                     <div
                         class="bg-gray-50 rounded-lg overflow-hidden shadow hover:shadow-md transition-shadow border border-gray-200"
                     >
-                        {#if nft.metadata && nft.metadata.image}
-                            <img
-                                src={nft.metadata.image}
-                                alt={nft.metadata.name || `Pokemon #${nft.id}`}
-                                class="w-full h-48 object-cover"
-                            />
-                        {:else}
-                            <img
-                                src="/placeholder.png"
-                                alt={`Pokemon #${nft.id}`}
-                                class="w-full h-48 object-cover bg-gray-200"
-                            />
-                        {/if}
+                        <div class="relative">
+                            {#if nft.metadata && nft.metadata.image}
+                                <img
+                                    src={nft.metadata.image}
+                                    alt={nft.metadata.name ||
+                                        `Pokemon #${nft.id}`}
+                                    class="w-full h-48 object-cover"
+                                />
+                            {:else}
+                                <img
+                                    src="/placeholder.png"
+                                    alt={`${nft.name || `Pokemon #${nft.id}`}`}
+                                    class="w-full h-48 object-cover bg-gray-200"
+                                />
+                            {/if}
+                        </div>
                         <div class="p-4">
                             <h3 class="font-semibold text-lg mb-2">
-                                {nft.metadata?.name || `Pokemon #${nft.id}`}
+                                {nft.name || `Pokemon #${nft.id}`}
                             </h3>
-                            <p class="text-gray-600 text-sm">
-                                {nft.metadata?.description ||
-                                    "No description available"}
+                            <p class="text-gray-600 text-sm mb-2">
+                                Type: {nft.pokeType || "Unknown"} | Level: {nft.level ||
+                                    "?"}
                             </p>
+                            <button
+                                class="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition-colors"
+                                on:click={async () => {
+                                    try {
+                                        error = "";
+                                        const price =
+                                            prompt("Enter price in ETH");
+                                        if (!price) return;
+
+                                        const result =
+                                            await listPokemonOnMarket(
+                                                marketContractAddress,
+                                                nft.id,
+                                                price,
+                                            );
+
+                                        if (result) {
+                                            await fetchNFTs();
+                                            await fetchMarketplaceItems();
+                                        }
+                                    } catch (err) {
+                                        error =
+                                            err instanceof Error
+                                                ? err.message
+                                                : "Failed to list Pokemon";
+                                        console.error("Listing error:", err);
+                                    }
+                                }}
+                            >
+                                Sell on Marketplace
+                            </button>
                         </div>
                     </div>
                 {/each}
@@ -279,6 +314,127 @@
 
         {#if error}
             <p class="mt-4 p-4 bg-red-100 text-red-700 rounded-md">{error}</p>
+        {/if}
+    </section>
+    <section class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-2xl font-semibold mb-6 text-gray-800">
+            All Marketplace Items
+        </h2>
+
+        {#if marketplaceItems && marketplaceItems.length > 0}
+            <div class="mb-6 flex flex-wrap gap-4">
+                <div class="flex-1 min-w-[200px]">
+                    <label
+                        for="sort"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Sort by</label
+                    >
+                    <select
+                        id="sort"
+                        class="w-full p-2 border border-gray-300 rounded-md"
+                    >
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                        <option value="newest">Newest First</option>
+                        <option value="level">Level</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label
+                        for="filter"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Filter by Type</label
+                    >
+                    <select
+                        id="filter"
+                        class="w-full p-2 border border-gray-300 rounded-md"
+                    >
+                        <option value="all">All Types</option>
+                        <option value="fire">Fire</option>
+                        <option value="water">Water</option>
+                        <option value="grass">Grass</option>
+                        <option value="electric">Electric</option>
+                    </select>
+                </div>
+            </div>
+
+            <div
+                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+            >
+                {#each marketplaceItems as item}
+                    <div
+                        class="bg-gray-50 rounded-lg overflow-hidden shadow hover:shadow-lg transition-all duration-300 border border-gray-200 flex flex-col"
+                    >
+                        <div class="relative">
+                            {#if item.metadata && item.metadata.image}
+                                <img
+                                    src={item.metadata.image}
+                                    alt={item.metadata.name ||
+                                        `Pokemon #${item.tokenId}`}
+                                    class="w-full h-48 object-cover"
+                                />
+                            {:else}
+                                <img
+                                    src="/placeholder.png"
+                                    alt={`Pokemon #${item.tokenId}`}
+                                    class="w-full h-48 object-cover bg-gray-200"
+                                />
+                            {/if}
+                            <span
+                                class="absolute top-2 right-2 bg-indigo-600 text-white text-xs px-2 py-1 rounded-full"
+                            >
+                                ID: {item.tokenId}
+                            </span>
+                        </div>
+                        <div class="p-4 flex-1 flex flex-col">
+                            <h3 class="font-semibold text-lg">
+                                {item.metadata?.name ||
+                                    `Pokemon #${item.tokenId}`}
+                            </h3>
+                            <p class="text-gray-600 text-sm my-1">
+                                Type: {item.metadata?.attributes?.[0]?.value ||
+                                    "Unknown"}
+                            </p>
+                            <p class="text-gray-600 text-sm mb-3">
+                                Level: {item.metadata?.attributes?.[1]?.value ||
+                                    "?"}
+                            </p>
+                            <div class="mt-auto pt-3 border-t border-gray-100">
+                                <p class="text-indigo-600 font-bold text-lg">
+                                    {item.price} ETH
+                                </p>
+                                <button
+                                    class="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-md transition-colors"
+                                >
+                                    Buy Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {:else}
+            <div class="text-center py-12 bg-gray-50 rounded-lg">
+                <svg
+                    class="w-16 h-16 mx-auto text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 12a4 4 0 100-8 4 4 0 000 8z"
+                    />
+                </svg>
+                <h3 class="mt-4 text-lg font-medium text-gray-900">
+                    No Pokemon available
+                </h3>
+                <p class="mt-1 text-gray-500">
+                    There are currently no Pokemon listed on the marketplace.
+                </p>
+            </div>
         {/if}
     </section>
 </div>

@@ -12,6 +12,7 @@ import { ethers, BrowserProvider, formatEther } from 'ethers';
  */
 export async function connectMetaMask() {
     try {
+        console.log(PokemonNFTABI)
         // Check if MetaMask is installed
         const provider = await detectEthereumProvider();
 
@@ -186,6 +187,66 @@ export async function createPokemonNFT(contractAddress: string, name: string, po
         toasts.add({
             title: 'Failed to create Pokemon',
             description: error instanceof Error ? error.message : 'Could not mint your Pokemon NFT',
+            type: 'error',
+            duration: 5000
+        });
+        return null;
+    }
+}
+
+/**
+ * List a Pokemon NFT for sale on the marketplace
+ * @param marketContractAddress The address of the PokemonMarket contract
+ * @param tokenId The ID of the token to list
+ * @param price The price in ETH
+ * @returns The transaction receipt if successful, null if error
+ */
+export async function listPokemonOnMarket(marketContractAddress: string, tokenId: number, price: string) {
+    try {
+        if (!window.ethereum) {
+            throw new Error('MetaMask is not installed');
+        }
+
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+
+        // Create contract instance for the marketplace
+        const marketContract = new ethers.Contract(
+            marketContractAddress,
+            PokemonMarketABI.abi,
+            signer
+        );
+
+        // Convert price from ETH to Wei
+        const priceInWei = ethers.parseEther(price);
+
+        // First approve the market contract to transfer the NFT
+        const nftContractAddress = await marketContract.pokemonNFT();
+        const nftContract = new ethers.Contract(
+            nftContractAddress,
+            PokemonNFTABI.abi,
+            signer
+        );
+
+        const approvalTx = await nftContract.approve(marketContractAddress, tokenId);
+        await approvalTx.wait();
+
+        // Now list the pokemon
+        const transaction = await marketContract.listPokemon(tokenId, priceInWei);
+        const tx = await transaction.wait();
+
+        toasts.add({
+            title: 'Pokemon Listed',
+            description: 'Your Pokemon NFT has been listed on the marketplace',
+            type: 'success',
+            duration: 3000
+        });
+
+        return tx;
+    } catch (error) {
+        toasts.add({
+            title: 'Failed to list Pokemon',
+            description: error instanceof Error ? error.message : 'Could not list your Pokemon NFT',
             type: 'error',
             duration: 5000
         });

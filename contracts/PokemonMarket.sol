@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 //Security features:
 //nonReentrant to prevent reentrancy attacks
 
-
 contract PokemonMarket is ReentrancyGuard, Ownable {
     struct Listing {
         address seller;
