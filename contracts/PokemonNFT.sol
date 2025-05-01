@@ -16,11 +16,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 //provide a counter for unique IDs (each Pokémon gets a unique number)
 contract PokemonNFT is ERC721, Ownable {
     uint256 private _tokenIds; // Counter for unique Pokémon IDs
+    uint256 private _maxId; // Base ID for Pokémon
 
     //A struct to store Pokémon details (name, type, level).
     struct Pokemon {
-        string name;
-        string pokeType;
+        uint256 baseIdx;
         uint256 level;
     }
 
@@ -28,33 +28,50 @@ contract PokemonNFT is ERC721, Ownable {
     mapping(uint256 => Pokemon) private _pokemonData; // Maps token ID to Pokémon data
 
     //Initializes the NFT contract with the name "PokemonNFT" and symbol "PKMN".
-    constructor() ERC721("PokemonNFT", "PKMN") Ownable() {}
+    constructor(uint256 maxId_) ERC721("PokemonNFT", "PKMN") Ownable() {
+        _maxId = maxId_;
+    }
 
     //A function to mint Pokémon NFTs. Only the contract owner can call it.
-    function mintPokemon(address player, string memory name, string memory pokeType, uint256 level) public onlyOwner returns (uint256) {
+    function mintPokemon(
+        address player,
+        uint256 baseIdx,
+        uint256 level
+    ) public onlyOwner returns (uint256) {
         _tokenIds += 1; // Manual counter instead of Counters.sol
         uint256 newPokemonId = _tokenIds;
 
+        require(baseIdx < _maxId, "Invalid base index");
         _mint(player, newPokemonId);
-        _pokemonData[newPokemonId] = Pokemon(name, pokeType, level);
+        _pokemonData[newPokemonId] = Pokemon(baseIdx, level);
 
         return newPokemonId;
     }
 
     //A function to retrieve Pokémon data using its ID.
-    function getPokemonDetails(uint256 tokenId) public view returns (string memory, string memory, uint256) {
-        require(_ownerOf(tokenId) != address(0), "Pokemon does not exist");
+    function getPokemonDetails(
+        uint256 tokenId
+    ) public view returns (uint256, uint256) {
+        require(_exists(tokenId), "Pokemon does not exist"); // Check if the token exists
         Pokemon memory p = _pokemonData[tokenId];
-        return (p.name, p.pokeType, p.level);
+        return (p.baseIdx, p.level);
+    }
+
+    function getOwner(uint256 tokenId) external view returns (address) {
+        require(_exists(tokenId), "Pokemon does not exist");
+        return ownerOf(tokenId);
     }
 
     //A function to trasnfer Pokemon between users
     function transferPokemon(address to, uint256 tokenId) public {
-        //Check ownership:
-        require(ownerOf(tokenId) == msg.sender, "You are not the owner of this Pokemon");
-        //Transfers the Pokémon safely:
+        require(
+            ownerOf(tokenId) == msg.sender,
+            "You are not the owner of this Pokemon"
+        );
         safeTransferFrom(msg.sender, to, tokenId);
+    }
 
-        //No need to manually update _pokemonData since ownership is already handled by ERC721.
+    function isContractOwner() external view returns (bool) {
+        return msg.sender == owner();
     }
 }

@@ -8,7 +8,7 @@ HARDHAT_PID=$!
 echo "Hardhat node started with PID: $HARDHAT_PID"
 
 # Give the node a moment to initialize
-sleep 3
+sleep 8
 
 # 3. Deploy the contracts
 echo "Deploying contracts..."
