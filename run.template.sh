@@ -12,7 +12,7 @@ sleep 8
 
 # 3. Deploy the contracts
 echo "Deploying contracts..."
-DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network localhost)
+DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network localhosnpx hardhat run scripts/deploy.js --network localhostt)
 
 # Extract addresses from the deployment output
 # Assuming the deploy script prints addresses in format "ContractName deployed to: 0x..."

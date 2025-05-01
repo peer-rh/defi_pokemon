@@ -5,7 +5,7 @@ import { ethers, BrowserProvider } from 'ethers';
 import { PUBLIC_NFT_CONTRACT_ADDRESS } from '$env/static/public';
 import * as POKEMON_DATA from '$lib/pokemons.json';
 
-type PokemonNFT = {
+export type PokemonNFT = {
     tokenId: number;
     baseIdx: number;
     level: number;
@@ -19,23 +19,21 @@ type PokemonNFT = {
 }
 
 export class NFTHandler {
-    public userNFTs: PokemonNFT[] = [];
-    userAddress: string | undefined;
-    public isAdmin: boolean = false;
-    private contract: ethers.Contract | undefined;
+    // @ts-ignore
+    userAddress: string;
+    // @ts-ignore
+    contract: ethers.Contract;
 
-    constructor() {
+    async init() {
         if (!window.ethereum) {
             throw new Error('MetaMask is not installed');
         }
-        this.init();
-    }
-
-    async init() {
         const provider = new BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const userAddress = await signer.getAddress();
         this.userAddress = userAddress;
+        console.log('User address:', this.userAddress);
+        console.log('Provider:', provider);
 
         // Create contract instance
         this.contract = new ethers.Contract(
@@ -43,21 +41,12 @@ export class NFTHandler {
             PokemonNFTABI.abi,
             signer
         );
-
-        // Check if the user is an admin
-        const isAdmin = await this.contract.isAdmin(userAddress);
-        this.isAdmin = isAdmin;
-
-        await this.fetchUserNFTs();
     }
 
-    async fetchUserNFTs() {
-        if (!this.contract) {
-            return;
-        }
 
+    async fetchUserNFTs() {
         const totalSupply = await this.contract.totalSupply();
-        this.userNFTs = [];
+        let userNFTs = [];
 
         for (let i = 0; i < totalSupply; i++) {
             try {
@@ -70,7 +59,7 @@ export class NFTHandler {
                     const baseIdx = details[0].toNumber();
                     const pokeData = POKEMON_DATA[baseIdx];
 
-                    this.userNFTs.push({
+                    userNFTs.push({
                         tokenId,
                         baseIdx,
                         level,
@@ -87,5 +76,15 @@ export class NFTHandler {
                 console.error('Error fetching NFT:', error);
             }
         }
+        return userNFTs;
+    }
+
+    async isAdmin() {
+        if (!this.contract || !this.userAddress) {
+            console.log
+            return false;
+        }
+        const isAdmin = await this.contract.isContractOwner();
+        return isAdmin;
     }
 }

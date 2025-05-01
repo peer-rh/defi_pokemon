@@ -1,13 +1,13 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { connectMetaMask } from "$lib/meta-mask";
-    import { NFTHandler } from "$lib/nft";
+    import { NFTHandler, type PokemonNFT } from "$lib/nft";
     import { toasts } from "svelte-toasts";
 
-    let account = "";
     let isConnecting = false;
-    let nftHandler: NFTHandler | null = null;
-    console.log("account", account);
+    let nftHandler: NFTHandler = new NFTHandler();
+    let isAdmin = false;
+    let userNFTs: PokemonNFT[] = [];
 
     onMount(async () => {
         try {
@@ -16,7 +16,6 @@
                 const accounts = await window.ethereum.request({
                     method: "eth_requestAccounts",
                 });
-                account = accounts[0];
             } else {
                 toasts.error(
                     "Please install MetaMask to use this application.",
@@ -29,10 +28,10 @@
             isConnecting = false;
         }
         const provider = window.ethereum;
-        provider.on("accountsChanged", (accounts: any) => {
-            account = accounts[0] || "";
-            nftHandler = new NFTHandler();
-        });
+        console.log("Provider:", provider);
+        await nftHandler.init();
+        isAdmin = await nftHandler.isAdmin();
+        userNFTs = await nftHandler.fetchUserNFTs();
     });
 </script>
 
@@ -40,7 +39,7 @@
     <!-- Section Admin 
             if the connected account is the admin address then show the admin panel, where he can mint new NFTs
             -->
-    {#if nftHandler?.isAdmin}
+    {#if isAdmin}
         You are the admin
     {/if}
     <!-- Section Owned Pokemons 
@@ -51,31 +50,23 @@
     <div class="my-8">
         <h2 class="text-2xl font-bold mb-4">My Pokémon Collection</h2>
 
-        {#if nftHandler && nftHandler.userNFTs && nftHandler.userNFTs.length > 0}
+        {#each userNFTs as pokemon}
             <div
-                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                class="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
             >
-                {#each nftHandler.userNFTs as pokemon}
-                    <div
-                        class="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-                    >
-                        <img
-                            src={pokemon.imageURI}
-                            alt={pokemon.name}
-                            class="w-full h-48 object-cover"
-                        />
-                        <div class="p-4">
-                            <h3 class="text-lg font-semibold">
-                                {pokemon.name}
-                            </h3>
-                            <p class="text-gray-700">Level: {pokemon.level}</p>
-                        </div>
-                    </div>
-                {/each}
+                <img
+                    src={pokemon.imageURI}
+                    alt={pokemon.name}
+                    class="w-full h-48 object-cover"
+                />
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold">
+                        {pokemon.name}
+                    </h3>
+                    <p class="text-gray-700">Level: {pokemon.level}</p>
+                </div>
             </div>
-        {:else}
-            <p class="text-gray-600">You don't own any Pokémon NFTs yet.</p>
-        {/if}
+        {/each}
     </div>
     <!-- Section Market 
                 Show all the pokemons listed on the market
