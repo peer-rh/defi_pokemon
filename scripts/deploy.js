@@ -3,7 +3,6 @@ const pokemons = require("../frontend/src/lib/pokemons.json");
 const fs = require("fs");
 const path = require("path");
 const nftArtifact = require("../artifacts/contracts/PokemonNFT.sol/PokemonNFT.json");
-const marketArtifact = require("../artifacts/contracts/PokemonMarket.sol/PokemonMarket.json");
 
 async function main() {
     const [deployer] = await hre.ethers.getSigners();
@@ -17,11 +16,6 @@ async function main() {
     await pokemonNFT.waitForDeployment();
     console.log("PokemonNFT deployed to:", await pokemonNFT.getAddress());
 
-    // Deploy the PokemonMarket contract and pass the NFT contract address
-    const PokemonMarket = await hre.ethers.getContractFactory("PokemonMarket");
-    const pokemonMarket = await PokemonMarket.deploy(await pokemonNFT.getAddress());
-    await pokemonMarket.waitForDeployment();
-    console.log("PokemonMarket deployed to:", await pokemonMarket.getAddress());
     const frontendDir = path.join(__dirname, "../frontend/src/lib/");
 
     // Write contract addresses and ABIs to frontend

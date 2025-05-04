@@ -1,5 +1,5 @@
 # 1. Set the Seed Phrase # (https://docs.metamask.io/wallet/how-to/run-devnet/)
-SEED_PHRASE=""
+export SEED_PHRASE=""
 
 # 2. Start the HardHat node
 echo "Starting Hardhat node in the background..."
@@ -21,12 +21,6 @@ if [[ $DEPLOY_OUTPUT =~ PokemonNFT\ deployed\ to:\ (0x[a-fA-F0-9]+) ]]; then
     PUBLIC_NFT_CONTRACT_ADDRESS="${BASH_REMATCH[1]}"
     echo "PUBLIC_NFT_CONTRACT_ADDRESS: $PUBLIC_NFT_CONTRACT_ADDRESS"
     export PUBLIC_NFT_CONTRACT_ADDRESS
-fi
-
-if [[ $DEPLOY_OUTPUT =~ PokemonMarket\ deployed\ to:\ (0x[a-fA-F0-9]+) ]]; then
-    PUBLIC_MARKETPLACE_CONTRACT_ADDRESS="${BASH_REMATCH[1]}"
-    echo "PUBLIC_MARKETPLACE_CONTRACT_ADDRESS: $PUBLIC_MARKETPLACE_CONTRACT_ADDRESS"
-    export PUBLIC_MARKETPLACE_CONTRACT_ADDRESS
 fi
 
 echo "Deploying contracts completed."

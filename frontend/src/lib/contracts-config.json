@@ -1,6 +1,6 @@
 {
-  "nftAddress": "0x0C935C388Fa30aFB87a6e71837c8B7e799A42B49",
-  "marketAddress": "0x033616B77F3Bb353aaaa9E8c6a92007c8470564A",
+  "nftAddress": "0x498dAcFa18Fb5eE6448e2250E077d95E4a3C32aa",
+  "marketAddress": "0xC2d367c9b89cD3245A94a5BeD1A35CC5F4B4CEc9",
   "nftAbi": [
     {
       "inputs": [
@@ -177,6 +177,25 @@
           "internalType": "address",
           "name": "",
           "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "player",
+          "type": "address"
+        }
+      ],
+      "name": "getPlayerPokemons",
+      "outputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "",
+          "type": "uint256[]"
         }
       ],
       "stateMutability": "view",
