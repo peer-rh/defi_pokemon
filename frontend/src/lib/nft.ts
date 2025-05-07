@@ -20,11 +20,11 @@ export type PokemonNFT = {
     listingPrice: string;
     isListed: boolean;
     owner: string; // Add owner field
-    auction?:{
-        highestBid:string;
-        auctionEndTime:number;
-        startingPrice:string;
-        isHighestBidder:boolean;
+    auction?: {
+        highestBid: string;
+        auctionEndTime: number;
+        startingPrice: string;
+        isHighestBidder: boolean;
     }
 }
 
@@ -63,6 +63,7 @@ export class NFTHandler {
     async fetchUserNFTs() {
         let userNFTs = [];
         let userTokens = await this.contract.getPlayerPokemons(this.userAddress);
+        console.log("User Tokens", userTokens);
 
         for (let i of userTokens) {
             const details = await this.contract.getPokemonDetails(i);
@@ -75,10 +76,10 @@ export class NFTHandler {
             const auctionHighestBid = ethers.formatEther(details[3]);
             const isAuction = details[4];
             const auction = !isAuction ? undefined : {
-                highestBid:auctionHighestBid,
-                auctionEndTime:"", // Not required
-                startingPrice:0, //Same as listing price
-                isHighestBidder:false // Not used 
+                highestBid: auctionHighestBid,
+                auctionEndTime: "", // Not required
+                startingPrice: 0, //Same as listing price
+                isHighestBidder: false // Not used 
             };
 
             userNFTs.push({
@@ -95,7 +96,7 @@ export class NFTHandler {
                 listingPrice: listingPrice,
                 isListed: isListed,
                 owner: this.userAddress, // Add owner field
-                auction:auction
+                auction: auction
             });
         }
         return userNFTs;
@@ -129,15 +130,15 @@ export class NFTHandler {
      */
     async auctionPokemonForSale(tokenId: number, priceInEther: string | number) {
         const price = ethers.parseEther(priceInEther.toString());
-        const tx = await this.contract.startAuction(tokenId, price,3600);
+        const tx = await this.contract.startAuction(tokenId, price, 60);
         await tx.wait();
         toasts.success(`Pokémon #${tokenId} listed for ${priceInEther} ETH`);
         return tx;
     }
 
-    async placeBid(tokenId:number, priceInEther:string|number){
+    async placeBid(tokenId: number, priceInEther: string | number) {
         const price = ethers.parseEther(priceInEther.toString());
-        const tx = await this.contract.placeBid(tokenId,{
+        const tx = await this.contract.placeBid(tokenId, {
             value: price,
         });
         await tx.wait();
@@ -208,23 +209,23 @@ export class NFTHandler {
             const pokeData = POKEMON_DATA[baseIdx] as any;
             const isListed = true;
             let auction = undefined;
-            
-            for(let j = 0; j < auctionTokenIds.length; j++){
-                if(auctionTokenIds[j] == tokenId){
+
+            for (let j = 0; j < auctionTokenIds.length; j++) {
+                if (auctionTokenIds[j] == tokenId) {
                     auction = {
-                        highestBid:ethers.formatEther(highestBids[j]),
-                        auctionEndTime:auctionEndTime[j],
-                        startingPrice:ethers.formatEther(startingBid[j]),
+                        highestBid: ethers.formatEther(highestBids[j]),
+                        auctionEndTime: auctionEndTime[j],
+                        startingPrice: ethers.formatEther(startingBid[j]),
                         isHighestBidder: this.userAddress.toLowerCase() === highestBidderAddress[j].toLowerCase()
                     }
-                    console.log('A',auction.isHighestBidder);
+                    console.log('A', auction.isHighestBidder);
                     break;
                 }
             }
             let listingPrice = ethers.formatEther(0);
-            try{
-                listingPrice = ethers.formatEther(prices[i]??ethers.toBigInt(0));
-            }catch{}
+            try {
+                listingPrice = ethers.formatEther(prices[i] ?? ethers.toBigInt(0));
+            } catch { }
 
             listedPokemons.push({
                 tokenId,

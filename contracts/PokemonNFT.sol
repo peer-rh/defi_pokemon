@@ -20,7 +20,6 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
     uint256 private _tokenIds; // Counter for unique Pokémon IDs
     uint256 private _maxId; // Base ID for Pokémon
 
-    uint256[] private _auctionsTokens; //counter for unique pokemond ids
     //A struct to store Pokémon details (name, type, level).
     struct Pokemon {
         uint256 baseIdx;
@@ -43,7 +42,6 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
     mapping(uint256 => uint256) private _listings; // tokenId => fixed sale price in wei
     mapping(uint256 => Auction) public _auctions;
 
-
     event PokemonListed(
         uint256 indexed tokenId,
         uint256 price,
@@ -55,8 +53,16 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         address indexed buyer
     );
     event AuctionStarted(uint256 indexed tokenId);
-    event NewBid(uint256 indexed tokenId, address indexed bidder, uint256 amount);
-    event AuctionEnded(uint256 indexed tokenId, address indexed winner, uint256 amount);
+    event NewBid(
+        uint256 indexed tokenId,
+        address indexed bidder,
+        uint256 amount
+    );
+    event AuctionEnded(
+        uint256 indexed tokenId,
+        address indexed winner,
+        uint256 amount
+    );
 
     //Initializes the NFT contract with the name "PokemonNFT" and symbol "PKMN".
     constructor(uint256 maxId_) ERC721("PokemonNFT", "PKMN") Ownable() {
@@ -82,19 +88,16 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
     //A function to retrieve Pokémon data using its ID.
     function getPokemonDetails(
         uint256 tokenId
-    ) public view returns (uint256, uint256, uint256,uint256,bool) {
+    ) public view returns (uint256, uint256, uint256, uint256, bool) {
         require(_exists(tokenId), "Pokemon does not exist"); // Check if the token exists
         Pokemon memory p = _pokemonData[tokenId];
         uint256 price = _listings[tokenId]; // Also starting price at bid
-        Auction memory auction = _auctions[tokenId];
-        bool isAuction = false;
-        for(uint256 i = 0; i< _auctionsTokens.length;i++){
-            if(_auctionsTokens[i] == tokenId){
-                isAuction = true;
-                break;
-            }
-        }
-        return (p.baseIdx, p.level, price,auction.highestBid,isAuction);
+
+        Auction memory auctionData = _auctions[tokenId]; // Renamed from auction to avoid conflict
+        // An auction exists for the token if the seller is not the zero address in its auction struct,
+        // as the auction struct is deleted from the _auctions mapping when it ends.
+        bool isAuction = auctionData.seller != address(0);
+        return (p.baseIdx, p.level, price, auctionData.highestBid, isAuction);
     }
 
     function getOwner(uint256 tokenId) external view returns (address) {
@@ -171,23 +174,58 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
     function getAuctionPokemon()
         external
         view
-        returns (uint256[] memory, uint256[] memory, uint256[] memory,uint256[] memory,address[] memory)
+        returns (
+            uint256[] memory,
+            uint256[] memory,
+            uint256[] memory,
+            uint256[] memory,
+            address[] memory
+        )
     {
-        uint256 length = _auctionsTokens.length;
-        uint256[] memory tokenIds = new uint256[](length);
-        uint256[] memory highestBid = new uint256[](length);
-        uint256[] memory auctionEndTime = new uint256[](length);
-        uint256[] memory startingBids = new uint256[](length);
-        address[] memory highestBidder = new address[](length);
-        for(uint256 i = 0; i<length;i++){
-            uint256 tokenId = _auctionsTokens[i];
-            tokenIds[i] = _auctions[tokenId].tokenId; // idk why but need to add 1 here somewhere the tokenid gets -1
-            highestBid[i] = _auctions[tokenId].highestBid;
-            auctionEndTime[i] = _auctions[tokenId].endTime;
-            startingBids[i] = _auctions[tokenId].startingPrice;
-            highestBidder[i] = _auctions[tokenId].highestBidder;
+        uint256 totalTokens = _tokenIds;
+        uint256 activeAuctionCount = 0;
+        // First pass: count active auctions
+        for (uint256 i = 1; i <= totalTokens; i++) {
+            // An auction is considered active if its entry exists in the _auctions mapping
+            // (i.e., its seller field is not the zero address).
+            // Ended auctions are deleted from the _auctions mapping via endAuction.
+            if (_auctions[i].seller != address(0)) {
+                activeAuctionCount++;
+            }
         }
-        return (tokenIds,highestBid,auctionEndTime,startingBids,highestBidder);
+
+        uint256[] memory returnTokenIds = new uint256[](activeAuctionCount);
+        uint256[] memory returnHighestBids = new uint256[](activeAuctionCount);
+        uint256[] memory returnAuctionEndTimes = new uint256[](
+            activeAuctionCount
+        );
+        uint256[] memory returnStartingBids = new uint256[](activeAuctionCount);
+        address[] memory returnHighestBidders = new address[](
+            activeAuctionCount
+        );
+
+        uint256 currentIndex = 0;
+        // Second pass: populate arrays
+        for (uint256 i = 1; i <= totalTokens; i++) {
+            if (_auctions[i].seller != address(0)) {
+                Auction storage currentAuction = _auctions[i];
+                returnTokenIds[currentIndex] = currentAuction.tokenId;
+                returnHighestBids[currentIndex] = currentAuction.highestBid;
+                returnAuctionEndTimes[currentIndex] = currentAuction.endTime;
+                returnStartingBids[currentIndex] = currentAuction.startingPrice;
+                returnHighestBidders[currentIndex] = currentAuction
+                    .highestBidder;
+                currentIndex++;
+            }
+        }
+
+        return (
+            returnTokenIds,
+            returnHighestBids,
+            returnAuctionEndTimes,
+            returnStartingBids,
+            returnHighestBidders
+        );
     }
 
     /**
@@ -224,7 +262,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         // Effects
         delete _listings[tokenId];
         // Interaction
-        _safeTransfer(seller, msg.sender, tokenId, "");
+        safeTransferFrom(seller, msg.sender, tokenId);
         (bool success, ) = payable(seller).call{value: price}("");
         require(success, "Payment to seller failed");
         // Refund excess payment
@@ -245,18 +283,23 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
     function getListingPrice(uint256 tokenId) external view returns (uint256) {
         return _listings[tokenId];
     }
-
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual returns (bytes4) {
+        return this.onERC721Received.selector; // This is bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))
+    }
     function startAuction(
         uint256 tokenId,
         uint256 startingPrice,
         uint256 duration
-    )  external
-        returns (uint256) {
+    ) external returns (uint256) {
         require(ownerOf(tokenId) == msg.sender, "Not the owner");
         require(_auctions[tokenId].endTime == 0, "Auction already exists");
+        safeTransferFrom(msg.sender, address(this), tokenId);
         _listings[tokenId] = startingPrice;
-        _auctionsTokens.push(tokenId);
-
         _auctions[tokenId] = Auction({
             seller: msg.sender,
             tokenId: tokenId,
@@ -270,31 +313,42 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         return tokenId;
     }
 
-    function endAuction(uint256 tokenId) public {
+    function endAuction(uint256 tokenId) public nonReentrant {
         Auction storage auction = _auctions[tokenId];
         require(block.timestamp >= auction.endTime, "Auction not ended");
         require(!auction.ended, "Already ended");
-        delete _auctions[tokenId];
-        delete _listings[tokenId];
-        auction.ended = true;
 
-        if (auction.highestBidder != address(0)) {
-            payable(auction.seller).transfer(auction.highestBid);
-            _transfer(address(this), auction.highestBidder, tokenId);
+        // Cache necessary values before modifying/deleting storage
+        address seller = auction.seller;
+        address highestBidder = auction.highestBidder;
+        uint256 highestBid = auction.highestBid;
+
+        auction.ended = true; // Mark as ended first
+
+        // Remove from active listings and auctions mapping
+        delete _listings[tokenId]; // Also remove any fixed price listing associated with the auction start
+        delete _auctions[tokenId]; // This will clear all fields in the struct for this tokenId
+
+        if (highestBidder != address(0)) {
+            payable(seller).transfer(highestBid);
+            // The token is held by the contract, transfer to winner
+            _transfer(address(this), highestBidder, tokenId);
         } else {
             // No bids — return to seller
-            _transfer(address(this), auction.seller, tokenId);
+            _transfer(address(this), seller, tokenId);
         }
 
-        emit AuctionEnded(tokenId, auction.highestBidder, auction.highestBid);
+        emit AuctionEnded(tokenId, highestBidder, highestBid);
     }
 
-    function placeBid(uint256 tokenId) external payable {
+    function placeBid(uint256 tokenId) external payable nonReentrant {
         Auction storage auction = _auctions[tokenId];
         require(!auction.ended, Strings.toString(auction.endTime));
         require(block.timestamp < auction.endTime, "Auction ended");
 
-        uint256 currentBid = auction.highestBid > 0 ? auction.highestBid : auction.startingPrice;
+        uint256 currentBid = auction.highestBid > 0
+            ? auction.highestBid
+            : auction.startingPrice;
         require(msg.value > currentBid, "Bid too low ");
 
         // Refund previous highest bidder

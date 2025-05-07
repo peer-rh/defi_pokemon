@@ -23,9 +23,7 @@ async function main() {
         path.join(frontendDir, "contracts-config.json"),
         JSON.stringify({
             nftAddress: await pokemonNFT.getAddress(),
-            marketAddress: await pokemonMarket.getAddress(),
             nftAbi: nftArtifact.abi,
-            marketAbi: marketArtifact.abi
         }, null, 2)
     );
 
