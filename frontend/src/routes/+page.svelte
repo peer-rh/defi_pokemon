@@ -7,6 +7,8 @@
     let selectedPokemonIndex: number = 0;
     let mintLevel: number = 1;
 
+    let bid: number = 0.001;
+
     let isConnecting = false;
     let nftHandler: NFTHandler = new NFTHandler();
     let isAdmin = false;
@@ -39,29 +41,45 @@
         // Fetch marketplace listings
         marketplaceListings = await nftHandler.getAllListedPokemons();
     });
-
+    
     let selectedPokemon: PokemonNFT | null = null;
     let showModal = false;
+    let showBidModal = false;
     let listingPrice: string = "";
 
-    function openModal(pokemonItem: PokemonNFT) {
+    function openModal(pokemonItem: PokemonNFT, isBidding:boolean) {
         selectedPokemon = pokemonItem;
-        showModal = true;
+        console.log('openModal',selectedPokemon.auction);
+        if(!isBidding){
+            showModal = true;
+        }else{
+            bid = Math.max(parseFloat(pokemonItem.auction?.highestBid),parseFloat(pokemonItem.listingPrice));
+            showBidModal = true;
+        }
     }
 
-    function closeModal() {
-        showModal = false;
+    function closeModal(isBidding:boolean) {
         selectedPokemon = null;
         listingPrice = ""; // Reset listing price on close
+        if(isBidding){
+            showModal = false;
+        }else{
+            showBidModal = false;
+        }
     }
 
     async function cancelListing() {
         if (selectedPokemon) {
             try {
-                await nftHandler.cancelListing(selectedPokemon.tokenId);
+                if(selectedPokemon.auction){
+                    await nftHandler.endAuction(selectedPokemon.tokenId);
+                }
+                else{
+                    await nftHandler.cancelListing(selectedPokemon.tokenId);
+                }
                 userNFTs = await nftHandler.fetchUserNFTs();
                 marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
-                closeModal();
+                closeModal(false);
             } catch (error) {
                 console.error("Error cancelling listing:", error);
                 toasts.error("Failed to cancel listing.");
@@ -78,10 +96,28 @@
                 );
                 userNFTs = await nftHandler.fetchUserNFTs();
                 marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
-                closeModal();
+                closeModal(false);
             } catch (error) {
                 console.error("Error listing pokemon:", error);
                 toasts.error("Failed to list Pokémon.");
+            }
+        } else {
+            toasts.error("Please enter a valid price.");
+        }
+    }
+    async function auctionPokemon(priceInEther: string | number) {
+        if (selectedPokemon && priceInEther) {
+            try {
+                await nftHandler.auctionPokemonForSale(
+                    selectedPokemon.tokenId,
+                    priceInEther,
+                );
+                userNFTs = await nftHandler.fetchUserNFTs();
+                marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
+                closeModal(false);
+            } catch (error) {
+                console.error("Error listing pokemon:", error);
+                toasts.error("Failed to list Pokémon for auction.");
             }
         } else {
             toasts.error("Please enter a valid price.");
@@ -97,6 +133,25 @@
         } catch (error) {
             console.error("Error buying pokemon:", error);
             toasts.error("Failed to buy Pokémon.");
+        }
+    }
+
+    async function placeBid(tokenId: number, bidAmount: string | number,){
+        if (selectedPokemon && bidAmount) {
+            try {
+                await nftHandler.placeBid(
+                    selectedPokemon.tokenId,
+                    bidAmount,
+                );
+                marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
+
+                closeModal(true);
+            } catch (error) {
+                console.error("Error listing pokemon:", error);
+                toasts.error("Failed to bid on Pokemon.");
+            }
+        } else {
+            toasts.error("Please enter a valid price.");
         }
     }
 </script>
@@ -167,13 +222,18 @@
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                         class="relative bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105 duration-200"
-                        on:click={() => openModal(pokemon)}
+                        on:click={() => openModal(pokemon,false)}
                     >
-                        {#if pokemon.isListed}
+                        {#if pokemon.auction}
                             <span
-                                class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10"
-                                >Listed for {pokemon.listingPrice} ETH</span
-                            >
+                                class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
+                                In auction currently
+                            </span>
+                        {:else if pokemon.isListed}
+                            <span
+                                class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
+                                Listed for {pokemon.listingPrice} ETH
+                            </span>
                         {/if}
                         <img
                             src={pokemon.imageURI}
@@ -197,11 +257,11 @@
         {#if showModal && selectedPokemon}
             <div
                 class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-                on:click|self={closeModal}
+                on:click|self={() => closeModal(false)}
             >
                 <div class="bg-white rounded-lg p-6 w-96 relative shadow-xl">
                     <button
-                        on:click={closeModal}
+                        on:click={() => closeModal(false)}
                         class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl leading-none"
                         aria-label="Close modal">×</button
                     >
@@ -220,11 +280,18 @@
                         Token ID: {selectedPokemon.tokenId}
                     </p>
 
-                    {#if selectedPokemon.isListed}
+                    {#if selectedPokemon.isListed || selectedPokemon.auction}
                         <div class="text-center mb-4">
-                            <p class="font-semibold">
-                                Listed for: {selectedPokemon.listingPrice} ETH
-                            </p>
+                            {#if selectedPokemon.auction}
+                                <p class="font-semibold">
+                                    Auctioned for: {selectedPokemon.listingPrice} ETH </p>
+                                    <p>Current highest bid: {selectedPokemon.auction?.highestBid} ETH
+                                </p>
+                            {:else}
+                                <p class="font-semibold">
+                                    Listed for: {selectedPokemon.listingPrice} ETH
+                                </p>
+                            {/if}
                         </div>
                         <button
                             on:click={cancelListing}
@@ -237,7 +304,7 @@
                             <label
                                 for="listing-price"
                                 class="block text-sm font-medium text-gray-700 mb-1"
-                                >Listing Price (ETH):</label
+                                >Listing/Auction start Price (ETH):</label
                             >
                             <input
                                 id="listing-price"
@@ -249,14 +316,26 @@
                                 class="w-full border rounded px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                             />
                         </div>
-                        <button
-                            on:click={() => sellPokemon(listingPrice)}
-                            disabled={!listingPrice ||
-                                parseFloat(listingPrice) <= 0}
-                            class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            List for Sale
-                        </button>
+                        <div class="flex flex-col space-y-4 mt-3">
+                            {selectedPokemon.auction}
+                            <button
+                                on:click={() => sellPokemon(listingPrice)}
+                                disabled={!listingPrice ||
+                                    parseFloat(listingPrice) <= 0}
+                                class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                List for Sale
+                            </button>
+
+                            <button  
+                                on:click={() => auctionPokemon(listingPrice)}
+                                disabled={!listingPrice ||
+                                    parseFloat(listingPrice) <= 0}
+                                class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                List it for auction
+                            </button>
+                        </div>
                     {/if}
                 </div>
             </div>
@@ -287,15 +366,28 @@
                                 <p class="text-gray-700">
                                     Level: {pokemon.level}
                                 </p>
-                                <p class="text-gray-900 font-bold mt-1">
-                                    Price: {pokemon.listingPrice} ETH
-                                </p>
-                                <button
-                                    on:click={() => buyPokemon(pokemon)}
-                                    class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors"
-                                >
-                                    Buy Now
-                                </button>
+                                {#if pokemon.auction}
+                                    <p class="text-gray-900 font-bold mt-1">
+                                        Current highest bid: {pokemon.auction.highestBid} ETH
+                                    </p>
+                                {:else}
+                                    <p class="text-gray-900 font-bold mt-1">
+                                        Price: {pokemon.listingPrice} ETH
+                                    </p>
+                                {/if}
+                                {#if pokemon.auction}
+                                    <button
+                                        on:click={() => openModal(pokemon,true)}
+                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors">
+                                        Bid Now
+                                    </button>
+                                {:else}
+                                    <button
+                                        on:click={() => buyPokemon(pokemon)}
+                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors">
+                                        Buy Now
+                                    </button>
+                                {/if}
                             </div>
                         </div>
                     {/if}
@@ -310,4 +402,64 @@
             </p>
         {/if}
     </div>
+
+    {#if showBidModal && selectedPokemon}
+    <div
+        class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+        on:click|self={() => closeModal(true)}
+    >
+        <div class="bg-white rounded-lg p-6 w-96 relative shadow-xl">
+            <button
+                on:click={() => closeModal(true)}
+                class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                aria-label="Close modal">×</button
+            >
+            <img
+                src={selectedPokemon.imageURI}
+                alt={selectedPokemon.name}
+                class="w-32 h-32 mx-auto mb-4 rounded-full border-4 border-gray-200"
+            />
+            <h3 class="text-xl font-bold text-center mb-2">
+                {selectedPokemon.name}
+            </h3>
+            <p class="text-center mb-1">
+                Level: {selectedPokemon.level}
+            </p>
+            <p class="text-center text-sm text-gray-600 mb-4">
+                Token ID: {selectedPokemon.tokenId}
+            </p>
+
+            <h3 class="text-xl font-bold text-center mb-2">
+                Current Highest bid: {selectedPokemon.auction?.highestBid}
+            </h3>
+            <p class="text-center text-sm text-gray-600 mb-4">
+                Min bid: {selectedPokemon.listingPrice}
+            </p>
+
+            <div class="mb-2">
+                <label
+                    for="bid-price"
+                    class="block text-sm font-medium text-gray-700 mb-1"
+                    >Bid (ETH):</label
+                >
+                <input
+                    id="bid-price"
+                    type="number"
+                    step="0.001"
+                    min={Math.max(parseFloat(selectedPokemon.auction?.highestBid),parseFloat(selectedPokemon.listingPrice))}
+                    bind:value={bid}
+                    placeholder="e.g., 0.1"
+                    class="w-full border rounded px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+            </div>
+            <button
+                on:click={() => placeBid(selectedPokemon.tokenId,bid)}
+                disabled={ false }
+                class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Bid
+            </button>
+        </div>
+    </div>
+    {/if}
+
 </div>
