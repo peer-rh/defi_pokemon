@@ -14,6 +14,9 @@
     let isAdmin = false;
     let userNFTs: PokemonNFT[] = [];
     let marketplaceListings: PokemonNFT[] = []; // State for marketplace listings
+    let interval: ReturnType<typeof setInterval>;
+    let countdowns: { [tokenId: number]: string } = {};
+
 
     onMount(async () => {
         try {
@@ -40,6 +43,7 @@
 
         // Fetch marketplace listings
         marketplaceListings = await nftHandler.getAllListedPokemons();
+        interval = setInterval(updateAndFormatTime, 1000);
     });
     
     let selectedPokemon: PokemonNFT | null = null;
@@ -65,6 +69,25 @@
             showModal = false;
         }else{
             showBidModal = false;
+        }
+    }
+
+    async function updateAndFormatTime(){
+        for(const pokemon of marketplaceListings){
+            if(pokemon.auction){
+                const endTime = pokemon.auction.auctionEndTime;
+                const currentTime = Math.floor(Date.now() / 1000); // seconds
+                const remainingSeconds = Number(endTime) - currentTime;
+                if (remainingSeconds <= 0){ 
+                    countdowns[pokemon.tokenId] = "Auction ended";
+                    await nftHandler.endAuction(pokemon.tokenId);
+                }else{
+                    const h = Math.floor(remainingSeconds / 3600);
+                    const m = Math.floor((remainingSeconds % 3600) / 60);
+                    const s = remainingSeconds % 60;
+                    countdowns[pokemon.tokenId] = `${h}h ${m}m ${s}s`;
+                }
+            }
         }
     }
 
@@ -351,9 +374,13 @@
             >
                 {#each marketplaceListings as pokemon}
                     {#if pokemon.owner.toLowerCase() !== nftHandler.userAddress.toLowerCase()}
-                        <div
-                            class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                        >
+                        <div class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                            {#if pokemon.auction?.isHighestBidder}
+                                <span class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
+                                    You are the highest bidder
+                                </span>
+                            {/if}
+
                             <img
                                 src={pokemon.imageURI}
                                 alt={pokemon.name}
@@ -368,7 +395,16 @@
                                 </p>
                                 {#if pokemon.auction}
                                     <p class="text-gray-900 font-bold mt-1">
-                                        Current highest bid: {pokemon.auction.highestBid} ETH
+                                        Current highest bid: 
+                                    </p>
+                                    <p class="text-gray mt-1"> 
+                                        {pokemon.auction.highestBid} ETH
+                                    </p>
+                                    <p class="text-gray-900 font-bold mt-1">
+                                        Remaining time: 
+                                    </p>
+                                    <p class="text-gray mt-1"> 
+                                        {countdowns[pokemon.tokenId]}
                                     </p>
                                 {:else}
                                     <p class="text-gray-900 font-bold mt-1">
@@ -409,6 +445,11 @@
         on:click|self={() => closeModal(true)}
     >
         <div class="bg-white rounded-lg p-6 w-96 relative shadow-xl">
+            {#if selectedPokemon.auction?.isHighestBidder}
+                <span class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
+                    You are the highest bidder
+                </span>
+            {/if}
             <button
                 on:click={() => closeModal(true)}
                 class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl leading-none"
@@ -427,6 +468,10 @@
             </p>
             <p class="text-center text-sm text-gray-600 mb-4">
                 Token ID: {selectedPokemon.tokenId}
+            </p>
+
+            <p class="text-center text-sm text-gray-600 mb-4">
+                Remaining time: {countdowns[selectedPokemon.tokenId]}
             </p>
 
             <h3 class="text-xl font-bold text-center mb-2">

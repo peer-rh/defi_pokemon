@@ -171,21 +171,23 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
     function getAuctionPokemon()
         external
         view
-        returns (uint256[] memory, uint256[] memory, uint256[] memory,uint256[] memory)
+        returns (uint256[] memory, uint256[] memory, uint256[] memory,uint256[] memory,address[] memory)
     {
         uint256 length = _auctionsTokens.length;
         uint256[] memory tokenIds = new uint256[](length);
         uint256[] memory highestBid = new uint256[](length);
         uint256[] memory auctionEndTime = new uint256[](length);
         uint256[] memory startingBids = new uint256[](length);
+        address[] memory highestBidder = new address[](length);
         for(uint256 i = 0; i<length;i++){
             uint256 tokenId = _auctionsTokens[i];
             tokenIds[i] = _auctions[tokenId].tokenId; // idk why but need to add 1 here somewhere the tokenid gets -1
             highestBid[i] = _auctions[tokenId].highestBid;
             auctionEndTime[i] = _auctions[tokenId].endTime;
             startingBids[i] = _auctions[tokenId].startingPrice;
+            highestBidder[i] = _auctions[tokenId].highestBidder;
         }
-        return (tokenIds,highestBid,auctionEndTime,startingBids);
+        return (tokenIds,highestBid,auctionEndTime,startingBids,highestBidder);
     }
 
     /**

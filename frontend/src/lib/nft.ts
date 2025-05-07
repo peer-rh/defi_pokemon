@@ -24,6 +24,7 @@ export type PokemonNFT = {
         highestBid:string;
         auctionEndTime:number;
         startingPrice:string;
+        isHighestBidder:boolean;
     }
 }
 
@@ -76,7 +77,8 @@ export class NFTHandler {
             const auction = !isAuction ? undefined : {
                 highestBid:auctionHighestBid,
                 auctionEndTime:"", // Not required
-                startingPrice:0 //Same as listing price 
+                startingPrice:0, //Same as listing price
+                isHighestBidder:false // Not used 
             };
 
             userNFTs.push({
@@ -193,7 +195,7 @@ export class NFTHandler {
      */
     async getAllListedPokemons(): Promise<PokemonNFT[]> {
         const [tokenIds, prices] = await this.contract.getListedPokemons();
-        const [auctionTokenIds, highestBids, auctionEndTime, startingBid] = await this.contract.getAuctionPokemon();
+        const [auctionTokenIds, highestBids, auctionEndTime, startingBid, highestBidderAddress] = await this.contract.getAuctionPokemon();
         const listedPokemons: PokemonNFT[] = [];
         const uniqueIds = Array.from(new Set([...tokenIds, ...auctionTokenIds]));
 
@@ -212,8 +214,10 @@ export class NFTHandler {
                     auction = {
                         highestBid:ethers.formatEther(highestBids[j]),
                         auctionEndTime:auctionEndTime[j],
-                        startingPrice:ethers.formatEther(startingBid[j])
+                        startingPrice:ethers.formatEther(startingBid[j]),
+                        isHighestBidder: this.userAddress.toLowerCase() === highestBidderAddress[j].toLowerCase()
                     }
+                    console.log('A',auction.isHighestBidder);
                     break;
                 }
             }
