@@ -1,5 +1,5 @@
 {
-  "nftAddress": "0x498dAcFa18Fb5eE6448e2250E077d95E4a3C32aa",
+  "nftAddress": "0x9b2A3Bf1fC1506cf16af49a8198526F33f2BCa69",
   "nftAbi": [
     {
       "inputs": [
@@ -391,6 +391,11 @@
           "internalType": "address[]",
           "name": "",
           "type": "address[]"
+        },
+        {
+          "internalType": "bool[]",
+          "name": "",
+          "type": "bool[]"
         }
       ],
       "stateMutability": "view",

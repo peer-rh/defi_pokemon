@@ -179,7 +179,8 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
             uint256[] memory,
             uint256[] memory,
             uint256[] memory,
-            address[] memory
+            address[] memory,
+            bool[] memory
         )
     {
         uint256 totalTokens = _tokenIds;
@@ -203,6 +204,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         address[] memory returnHighestBidders = new address[](
             activeAuctionCount
         );
+        bool[] memory returnAuctionEnded = new bool[](activeAuctionCount);
 
         uint256 currentIndex = 0;
         // Second pass: populate arrays
@@ -215,6 +217,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
                 returnStartingBids[currentIndex] = currentAuction.startingPrice;
                 returnHighestBidders[currentIndex] = currentAuction
                     .highestBidder;
+                returnAuctionEnded[currentIndex] = currentAuction.ended;
                 currentIndex++;
             }
         }
@@ -224,7 +227,8 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
             returnHighestBids,
             returnAuctionEndTimes,
             returnStartingBids,
-            returnHighestBidders
+            returnHighestBidders,
+            returnAuctionEnded
         );
     }
 

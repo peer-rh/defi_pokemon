@@ -25,6 +25,7 @@ export type PokemonNFT = {
         auctionEndTime: number;
         startingPrice: string;
         isHighestBidder: boolean;
+        auctionEnded: boolean;
     }
 }
 
@@ -79,7 +80,8 @@ export class NFTHandler {
                 highestBid: auctionHighestBid,
                 auctionEndTime: "", // Not required
                 startingPrice: 0, //Same as listing price
-                isHighestBidder: false // Not used 
+                isHighestBidder: false, // Not used 
+                auctionEnded:false // Not used
             };
 
             userNFTs.push({
@@ -128,9 +130,9 @@ export class NFTHandler {
      * @param tokenId The ID of the Pokémon to list.
      * @param priceInEther The sale price in ETH.
      */
-    async auctionPokemonForSale(tokenId: number, priceInEther: string | number) {
+    async auctionPokemonForSale(tokenId: number, priceInEther: string | number, timeInSeconds:number) {
         const price = ethers.parseEther(priceInEther.toString());
-        const tx = await this.contract.startAuction(tokenId, price, 60);
+        const tx = await this.contract.startAuction(tokenId, price, timeInSeconds);
         await tx.wait();
         toasts.success(`Pokémon #${tokenId} listed for ${priceInEther} ETH`);
         return tx;
@@ -150,6 +152,7 @@ export class NFTHandler {
      * @param tokenId The ID of the Pokémon listing to cancel.
      */
     async endAuction(tokenId: number) {
+        console.log('Im here','idk why');
         const tx = await this.contract.endAuction(tokenId);
         await tx.wait();
         toasts.success(`Auction for Pokémon #${tokenId} canceled`);
@@ -196,7 +199,7 @@ export class NFTHandler {
      */
     async getAllListedPokemons(): Promise<PokemonNFT[]> {
         const [tokenIds, prices] = await this.contract.getListedPokemons();
-        const [auctionTokenIds, highestBids, auctionEndTime, startingBid, highestBidderAddress] = await this.contract.getAuctionPokemon();
+        const [auctionTokenIds, highestBids, auctionEndTime, startingBid, highestBidderAddress,auctionEnded] = await this.contract.getAuctionPokemon();
         const listedPokemons: PokemonNFT[] = [];
         const uniqueIds = Array.from(new Set([...tokenIds, ...auctionTokenIds]));
 
@@ -216,9 +219,9 @@ export class NFTHandler {
                         highestBid: ethers.formatEther(highestBids[j]),
                         auctionEndTime: auctionEndTime[j],
                         startingPrice: ethers.formatEther(startingBid[j]),
-                        isHighestBidder: this.userAddress.toLowerCase() === highestBidderAddress[j].toLowerCase()
+                        isHighestBidder: this.userAddress.toLowerCase() === highestBidderAddress[j].toLowerCase(),
+                        auctionEnded:auctionEnded
                     }
-                    console.log('A', auction.isHighestBidder);
                     break;
                 }
             }

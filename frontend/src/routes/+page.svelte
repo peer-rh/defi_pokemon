@@ -6,6 +6,8 @@
     import pokemonList from "$lib/pokemons.json";
     let selectedPokemonIndex: number = 0;
     let mintLevel: number = 1;
+    let auctionTime = 1;
+    let auctionTimeHours = 0;
 
     let bid: number = 0.001;
 
@@ -50,6 +52,7 @@
     let showModal = false;
     let showBidModal = false;
     let listingPrice: string = "";
+    let auctionTimeMinutes: number = 0;
 
     function openModal(pokemonItem: PokemonNFT, isBidding:boolean) {
         selectedPokemon = pokemonItem;
@@ -80,7 +83,7 @@
                 const remainingSeconds = Number(endTime) - currentTime;
                 if (remainingSeconds <= 0){ 
                     countdowns[pokemon.tokenId] = "Auction ended";
-                    await nftHandler.endAuction(pokemon.tokenId);
+                    tryEndingAuction(pokemon);
                 }else{
                     const h = Math.floor(remainingSeconds / 3600);
                     const m = Math.floor((remainingSeconds % 3600) / 60);
@@ -88,6 +91,16 @@
                     countdowns[pokemon.tokenId] = `${h}h ${m}m ${s}s`;
                 }
             }
+        }
+    }
+
+    async function tryEndingAuction(pokemon:PokemonNFT){
+        console.log('Hey',!pokemon.auction?.auctionEnded);
+        if(!pokemon.auction?.auctionEnded){
+            console.log('End Auction',pokemon);
+            await nftHandler.endAuction(pokemon.tokenId);
+            userNFTs = await nftHandler.fetchUserNFTs();
+            marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
         }
     }
 
@@ -128,12 +141,13 @@
             toasts.error("Please enter a valid price.");
         }
     }
-    async function auctionPokemon(priceInEther: string | number) {
+    async function auctionPokemon(priceInEther: string | number,timeInSeconds:number) {
         if (selectedPokemon && priceInEther) {
             try {
                 await nftHandler.auctionPokemonForSale(
                     selectedPokemon.tokenId,
                     priceInEther,
+                    timeInSeconds
                 );
                 userNFTs = await nftHandler.fetchUserNFTs();
                 marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
@@ -339,6 +353,40 @@
                                 class="w-full border rounded px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                             />
                         </div>
+                        <div class="mb-2">
+                            <label
+                                for="auction-time-minutes"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Auction time in minutes:</label
+                            >
+                            <input
+                                id="auction-time-minutes"
+                                type="number"
+                                step="1"
+                                min="0"
+                                max="59"
+                                bind:value={auctionTime}
+                                placeholder="e.g., 42"
+                                class="w-full border rounded px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
+                        </div>
+                        <div class="mb-2">
+                            <label
+                                for="auction-time-hours"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Auction time in hours:</label
+                            >
+                            <input
+                                id="auction-time-hours"
+                                type="number"
+                                step="1"
+                                min="0"
+                                defaultValue = "0"
+                                bind:value={auctionTimeHours}
+                                placeholder="e.g., 42"
+                                class="w-full border rounded px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
+                        </div>
                         <div class="flex flex-col space-y-4 mt-3">
                             {selectedPokemon.auction}
                             <button
@@ -351,9 +399,9 @@
                             </button>
 
                             <button  
-                                on:click={() => auctionPokemon(listingPrice)}
+                                on:click={() => auctionPokemon(listingPrice,auctionTime*60 + auctionTimeHours*3600)}
                                 disabled={!listingPrice ||
-                                    parseFloat(listingPrice) <= 0}
+                                    parseFloat(listingPrice) <= 0 || auctionTime*60 + auctionTimeHours*3600 == 0}
                                 class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 List it for auction
@@ -414,7 +462,8 @@
                                 {#if pokemon.auction}
                                     <button
                                         on:click={() => openModal(pokemon,true)}
-                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors">
+                                        disabled = { countdowns[pokemon.tokenId] == "Auction ended"}
+                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
                                         Bid Now
                                     </button>
                                 {:else}
@@ -499,7 +548,7 @@
             </div>
             <button
                 on:click={() => placeBid(selectedPokemon.tokenId,bid)}
-                disabled={ false }
+                disabled={ countdowns[selectedPokemon.tokenId] == "Auction ended" }
                 class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 Bid
             </button>
