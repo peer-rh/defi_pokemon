@@ -276,7 +276,7 @@
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
-                        class="relative bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105 duration-200"
+                        class="relative bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105 duration-200 border-2 border-black"
                         on:click={() => openModal(pokemon, false)}
                     >
                         {#if pokemon.auction}
@@ -295,13 +295,16 @@
                         <img
                             src={pokemon.imageURI}
                             alt={pokemon.name}
-                            class="w-full h-48 object-cover"
+                            class="w-full h-auto object-cover"
                         />
-                        <div class="p-4">
-                            <h3 class="text-lg font-semibold">
+                        <div class="flex justify-center items-center transform -translate-y-[-50%]">
+                            <img src="/pokeball_faint.svg" alt="Pokeball" class="w-10 h-10" />
+                        </div>
+                        <div class="p-4 bg-red-500">
+                            <h3 class="text-lg font-semibold text-white">
                                 {pokemon.name}
                             </h3>
-                            <p class="text-gray-700">Level: {pokemon.level}</p>
+                            <p class="text-white">Level: {pokemon.level}</p>
                         </div>
                     </div>
                 {/each}
@@ -455,7 +458,7 @@
                 {#each marketplaceListings as pokemon}
                     {#if pokemon.owner.toLowerCase() !== nftHandler.userAddress.toLowerCase()}
                         <div
-                            class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                            class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border-2 border-black"
                         >
                             {#if pokemon.auction?.isHighestBidder}
                                 <span
@@ -470,28 +473,31 @@
                                 alt={pokemon.name}
                                 class="w-full h-48 object-cover"
                             />
-                            <div class="p-4">
+                            <div class="p-4 bg-red-500 text-white">
+                            <div class="absolute top-43 left-1/2 transform -translate-x-1/2">
+                                <img src="/pokeball_faint.svg" alt="Pokeball" class="w-10 h-10" />
+                            </div>
                                 <h3 class="text-lg font-semibold">
                                     {pokemon.name}
                                 </h3>
-                                <p class="text-gray-700">
+                                <p class="text-gray-100">
                                     Level: {pokemon.level}
                                 </p>
                                 {#if pokemon.auction}
-                                    <p class="text-gray-900 font-bold mt-1">
+                                    <p class="text-white font-semibold mt-1">
                                         Current highest bid:
                                     </p>
-                                    <p class="text-gray mt-1">
+                                    <p class="text-gray-100 mt-1">
                                         {pokemon.auction.highestBid} ETH
                                     </p>
-                                    <p class="text-gray-900 font-bold mt-1">
+                                    <p class="text-white font-semibold mt-1">
                                         Remaining time:
                                     </p>
-                                    <p class="text-gray mt-1">
+                                    <p class="text-gray-100 mt-1">
                                         {countdowns[pokemon.tokenId]}
                                     </p>
                                 {:else}
-                                    <p class="text-gray-900 font-bold mt-1">
+                                    <p class="text-white font-semibold mt-1">
                                         Price: {pokemon.listingPrice} ETH
                                     </p>
                                 {/if}
@@ -501,14 +507,14 @@
                                             openModal(pokemon, true)}
                                         disabled={countdowns[pokemon.tokenId] ==
                                             "Auction ended"}
-                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                        class="mt-3 w-full bg-white text-black font-semibold py-2 px-4 rounded hover:bg-gray-200 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     >
                                         Bid Now
                                     </button>
                                 {:else}
                                     <button
                                         on:click={() => buyPokemon(pokemon)}
-                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors"
+                                        class="mt-3 w-full bg-white text-black font-semibold py-2 px-4 rounded hover:bg-gray-200 transition-colors"
                                     >
                                         Buy Now
                                     </button>
