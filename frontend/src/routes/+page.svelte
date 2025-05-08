@@ -461,9 +461,7 @@
                             class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border-2 border-black"
                         >
                             {#if pokemon.auction?.isHighestBidder}
-                                <span
-                                    class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10"
-                                >
+                                <span class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
                                     You are the highest bidder
                                 </span>
                             {/if}
@@ -473,10 +471,11 @@
                                 alt={pokemon.name}
                                 class="w-full h-48 object-cover"
                             />
-                            <div class="p-4 bg-red-500 text-white">
-                            <div class="absolute top-43 left-1/2 transform -translate-x-1/2">
+
+                            <div class="absolute top-43 left-1/2 transform -translate-x-1/2 z-20">
                                 <img src="/pokeball_faint.svg" alt="Pokeball" class="w-10 h-10" />
                             </div>
+                            <div class="relative p-4 bg-red-500 text-white h-full flex flex-col">
                                 <h3 class="text-lg font-semibold">
                                     {pokemon.name}
                                 </h3>
