@@ -18,6 +18,7 @@
     let marketplaceListings: PokemonNFT[] = []; // State for marketplace listings
     let interval: ReturnType<typeof setInterval>;
     let countdowns: { [tokenId: number]: string } = {};
+    let isPaused = false;
 
     onMount(async () => {
         try {
@@ -45,6 +46,7 @@
         // Fetch marketplace listings
         marketplaceListings = await nftHandler.getAllListedPokemons();
         interval = setInterval(updateAndFormatTime, 1000);
+        isPaused = await nftHandler.isPaused();
     });
 
     let selectedPokemon: PokemonNFT | null = null;
@@ -52,6 +54,18 @@
     let showBidModal = false;
     let listingPrice: string = "";
     let auctionTimeMinutes: number = 0;
+
+
+    async function togglePause(){
+        try{
+            await nftHandler.togglePaused();
+            isPaused = !isPaused;
+            toasts.success(`Successfully set contract paused state to ${isPaused}!`);
+        }catch(error){
+            console.error("Error toggling", error);
+            toasts.error("Failed to switch.");
+        }
+    }
 
     function openModal(pokemonItem: PokemonNFT, isBidding: boolean) {
         selectedPokemon = pokemonItem;
@@ -97,7 +111,6 @@
     }
 
     async function tryEndingAuction(pokemon: PokemonNFT) {
-        console.log("Hey", pokemon.auction?.auctionEnded);
         if (
             !pokemon.auction?.auctionEnded &&
             !requestedAlready[pokemon.tokenId]
@@ -212,11 +225,28 @@
 </script>
 
 <div class="container mx-auto px-4 py-8">
+
+    {#if isPaused}
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
+            <p class="font-bold">⚠️ Contract Paused</p>
+            <p>All marketplace functions are currently disabled. Please try again later.</p>
+        </div>
+    {/if}
     <!-- Section Admin -->
     {#if isAdmin}
         <div class="admin-panel my-4 p-4 bg-gray-100 rounded shadow">
             <h2 class="text-xl font-bold mb-2">Admin Panel</h2>
-            <div class="mb-2">
+            <div>
+                <button
+                    class="bg-blue-500 text-white px-4 py-2 rounded-md rounded hover:bg-blue-600 mb-4"
+                on:click={togglePause}
+                >   
+                {#if isPaused}
+                    Unpause Auctions
+                {:else}
+                    Pause Auctions
+                {/if}
+            </button>
                 <label for="pokemon-select" class="block font-medium mb-1"
                     >Select Pokémon:</label
                 >

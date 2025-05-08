@@ -1,4 +1,5 @@
 {
+
   "nftAddress": "0x498dAcFa18Fb5eE6448e2250E077d95E4a3C32aa",
   "nftAbi": [
     {
@@ -553,6 +554,19 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "isPaused",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "uint256",
@@ -826,6 +840,13 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "togglePause",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {

@@ -1,5 +1,5 @@
 # 1. Set the Seed Phrase # (https://docs.metamask.io/wallet/how-to/run-devnet/)
-export SEED_PHRASE=""
+export SEED_PHRASE="feel sausage city lizard vault ramp frame ability dune demise cream shock"
 
 # 2. Start the HardHat node
 echo "Starting Hardhat node in the background..."

@@ -20,6 +20,8 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
     uint256 private _tokenIds; // Counter for unique Pokémon IDs
     uint256 private _maxId; // Base ID for Pokémon
 
+    bool public isPaused = false;
+
     //A struct to store Pokémon details (name, type, level).
     struct Pokemon {
         uint256 baseIdx;
@@ -69,12 +71,17 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         _maxId = maxId_;
     }
 
+    modifier whenNotPaused() {
+        require(!isPaused, "Contract is paused");
+        _;
+    }
+
     //A function to mint Pokémon NFTs. Only the contract owner can call it.
     function mintPokemon(
         address player,
         uint256 baseIdx,
         uint256 level
-    ) public onlyOwner returns (uint256) {
+    ) public onlyOwner whenNotPaused() returns (uint256) {
         _tokenIds += 1; // Manual counter instead of Counters.sol
         uint256 newPokemonId = _tokenIds;
 
@@ -106,7 +113,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
     }
 
     //A function to trasnfer Pokemon between users
-    function transferPokemon(address to, uint256 tokenId) public {
+    function transferPokemon(address to, uint256 tokenId) public whenNotPaused(){
         require(
             ownerOf(tokenId) == msg.sender,
             "You are not the owner of this Pokemon"
@@ -237,7 +244,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
      * @param tokenId The ID of the Pokémon to list.
      * @param price The sale price in wei.
      */
-    function listPokemonForSale(uint256 tokenId, uint256 price) external {
+    function listPokemonForSale(uint256 tokenId, uint256 price) external whenNotPaused {
         require(ownerOf(tokenId) == msg.sender, "Not the owner");
         require(price > 0, "Price must be greater than zero");
         _listings[tokenId] = price;
@@ -248,7 +255,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
      * @notice Cancel an existing listing.
      * @param tokenId The ID of the Pokémon listing to cancel.
      */
-    function cancelListing(uint256 tokenId) external {
+    function cancelListing(uint256 tokenId) external whenNotPaused() {
         require(ownerOf(tokenId) == msg.sender, "Not the owner");
         require(_listings[tokenId] > 0, "Not listed for sale");
         delete _listings[tokenId];
@@ -258,7 +265,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
      * @notice Purchase a listed Pokémon.
      * @param tokenId The ID of the Pokémon to buy.
      */
-    function buyPokemon(uint256 tokenId) external payable nonReentrant {
+    function buyPokemon(uint256 tokenId) external payable nonReentrant whenNotPaused {
         uint256 price = _listings[tokenId];
         require(price > 0, "Not for sale");
         require(msg.value >= price, "Insufficient payment");
@@ -299,7 +306,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         uint256 tokenId,
         uint256 startingPrice,
         uint256 duration
-    ) external returns (uint256) {
+    ) external  whenNotPaused() returns (uint256) {
         require(ownerOf(tokenId) == msg.sender, "Not the owner");
         require(_auctions[tokenId].endTime == 0, "Auction already exists");
         safeTransferFrom(msg.sender, address(this), tokenId);
@@ -317,7 +324,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         return tokenId;
     }
 
-    function endAuction(uint256 tokenId) public nonReentrant {
+    function endAuction(uint256 tokenId) public whenNotPaused() nonReentrant {
         Auction storage auction = _auctions[tokenId];
         require(block.timestamp >= auction.endTime, "Auction not ended");
         require(!auction.ended, "Already ended");
@@ -345,7 +352,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         emit AuctionEnded(tokenId, highestBidder, highestBid);
     }
 
-    function placeBid(uint256 tokenId) external payable nonReentrant {
+    function placeBid(uint256 tokenId) external payable nonReentrant whenNotPaused() {
         Auction storage auction = _auctions[tokenId];
         require(!auction.ended, Strings.toString(auction.endTime));
         require(block.timestamp < auction.endTime, "Auction ended");
@@ -366,4 +373,32 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
 
         emit NewBid(tokenId, msg.sender, msg.value);
     }
+
+
+    function togglePause() public onlyOwner(){
+        isPaused = !isPaused;
+        if(isPaused){
+            uint256 totalTokens = _tokenIds;
+            uint256 activeAuctionCount = 0;
+                for (uint256 i = 1; i <= totalTokens; i++) {
+                // An auction is considered active if its entry exists in the _auctions mapping
+                // (i.e., its seller field is not the zero address).
+                // Ended auctions are deleted from the _auctions mapping via endAuction.
+                if (_auctions[i].seller != address(0)) {
+                    activeAuctionCount++;
+                }
+            }
+
+            uint256 currentIndex = 0;
+            // Second pass: populate arrays
+            for (uint256 i = 1; i <= totalTokens; i++) {
+                if (_auctions[i].seller != address(0)) {
+                    Auction storage currentAuction = _auctions[i];
+                    if (currentAuction.highestBidder != address(0)) {
+                        payable(currentAuction.highestBidder).transfer(currentAuction.highestBid);
+                    }
+                }
+            }
+        }
+    }   
 }

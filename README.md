@@ -219,7 +219,5 @@ A Hardhat script used to deploy the `PokemonNFT` smart contract.
     4.  Waits for the deployment to be confirmed.
     5.  Writes the deployed contract's address and ABI to `frontend/src/lib/contracts-config.json`. This file is then used by the frontend to interact with the contract.
 
----
-
 ## Credits
 - https://github.com/cristobalmitchell/pokedex for pokemon data
