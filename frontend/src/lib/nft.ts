@@ -61,6 +61,15 @@ export class NFTHandler {
         const tx = await transaction.wait();
         return tx
     }
+
+    async isPaused(){
+        let isPaused = await this.contract.isPaused();
+        return isPaused;
+    }
+    async togglePaused(){
+        await this.contract.togglePause();
+    }
+
     async fetchUserNFTs() {
         let userNFTs = [];
         let userTokens = await this.contract.getPlayerPokemons(this.userAddress);
@@ -152,7 +161,6 @@ export class NFTHandler {
      * @param tokenId The ID of the Pokémon listing to cancel.
      */
     async endAuction(tokenId: number) {
-        console.log('Im here', 'idk why');
         const tx = await this.contract.endAuction(tokenId);
         await tx.wait();
         toasts.success(`Auction for Pokémon #${tokenId} canceled`);
