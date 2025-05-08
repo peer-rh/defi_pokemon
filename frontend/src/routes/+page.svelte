@@ -10,7 +10,7 @@
     let auctionTimeHours = 0;
 
     let bid: number = 0.001;
-
+    let requestedAlready = {};
     let isConnecting = false;
     let nftHandler: NFTHandler = new NFTHandler();
     let isAdmin = false;
@@ -18,7 +18,6 @@
     let marketplaceListings: PokemonNFT[] = []; // State for marketplace listings
     let interval: ReturnType<typeof setInterval>;
     let countdowns: { [tokenId: number]: string } = {};
-
 
     onMount(async () => {
         try {
@@ -47,44 +46,47 @@
         marketplaceListings = await nftHandler.getAllListedPokemons();
         interval = setInterval(updateAndFormatTime, 1000);
     });
-    
+
     let selectedPokemon: PokemonNFT | null = null;
     let showModal = false;
     let showBidModal = false;
     let listingPrice: string = "";
     let auctionTimeMinutes: number = 0;
 
-    function openModal(pokemonItem: PokemonNFT, isBidding:boolean) {
+    function openModal(pokemonItem: PokemonNFT, isBidding: boolean) {
         selectedPokemon = pokemonItem;
-        console.log('openModal',selectedPokemon.auction);
-        if(!isBidding){
+        console.log("openModal", selectedPokemon.auction);
+        if (!isBidding) {
             showModal = true;
-        }else{
-            bid = Math.max(parseFloat(pokemonItem.auction?.highestBid),parseFloat(pokemonItem.listingPrice));
+        } else {
+            bid = Math.max(
+                parseFloat(pokemonItem.auction?.highestBid),
+                parseFloat(pokemonItem.listingPrice),
+            );
             showBidModal = true;
         }
     }
 
-    function closeModal(isBidding:boolean) {
+    function closeModal(isBidding: boolean) {
         selectedPokemon = null;
         listingPrice = ""; // Reset listing price on close
-        if(isBidding){
+        if (isBidding) {
             showModal = false;
-        }else{
+        } else {
             showBidModal = false;
         }
     }
 
-    async function updateAndFormatTime(){
-        for(const pokemon of marketplaceListings){
-            if(pokemon.auction){
+    async function updateAndFormatTime() {
+        for (const pokemon of marketplaceListings) {
+            if (pokemon.auction) {
                 const endTime = pokemon.auction.auctionEndTime;
                 const currentTime = Math.floor(Date.now() / 1000); // seconds
                 const remainingSeconds = Number(endTime) - currentTime;
-                if (remainingSeconds <= 0){ 
+                if (remainingSeconds <= 0) {
                     countdowns[pokemon.tokenId] = "Auction ended";
                     tryEndingAuction(pokemon);
-                }else{
+                } else {
                     const h = Math.floor(remainingSeconds / 3600);
                     const m = Math.floor((remainingSeconds % 3600) / 60);
                     const s = remainingSeconds % 60;
@@ -94,11 +96,28 @@
         }
     }
 
-    async function tryEndingAuction(pokemon:PokemonNFT){
-        console.log('Hey',!pokemon.auction?.auctionEnded);
-        if(!pokemon.auction?.auctionEnded){
-            console.log('End Auction',pokemon);
-            await nftHandler.endAuction(pokemon.tokenId);
+    async function tryEndingAuction(pokemon: PokemonNFT) {
+        console.log("Hey", pokemon.auction?.auctionEnded);
+        if (
+            !pokemon.auction?.auctionEnded &&
+            !requestedAlready[pokemon.tokenId]
+        ) {
+            console.log("End Auction", pokemon);
+            requestedAlready[pokemon.tokenId] = true;
+            try {
+                await nftHandler.endAuction(pokemon.tokenId);
+            } catch (error) {
+                if (error.message.includes("Auction not ended")) {
+                    // Wait for 3 seconds and try again
+                    console.log(
+                        "Auction not ended yet, waiting 3 seconds to try again...",
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, 3000));
+                    requestedAlready[pokemon.tokenId] = false; // Reset the flag to allow retry
+                }
+                toasts.error("Failed to end auction.");
+                console.error("Error ending auction:", error);
+            }
             userNFTs = await nftHandler.fetchUserNFTs();
             marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
         }
@@ -107,10 +126,9 @@
     async function cancelListing() {
         if (selectedPokemon) {
             try {
-                if(selectedPokemon.auction){
+                if (selectedPokemon.auction) {
                     await nftHandler.endAuction(selectedPokemon.tokenId);
-                }
-                else{
+                } else {
                     await nftHandler.cancelListing(selectedPokemon.tokenId);
                 }
                 userNFTs = await nftHandler.fetchUserNFTs();
@@ -141,13 +159,16 @@
             toasts.error("Please enter a valid price.");
         }
     }
-    async function auctionPokemon(priceInEther: string | number,timeInSeconds:number) {
+    async function auctionPokemon(
+        priceInEther: string | number,
+        timeInSeconds: number,
+    ) {
         if (selectedPokemon && priceInEther) {
             try {
                 await nftHandler.auctionPokemonForSale(
                     selectedPokemon.tokenId,
                     priceInEther,
-                    timeInSeconds
+                    timeInSeconds,
                 );
                 userNFTs = await nftHandler.fetchUserNFTs();
                 marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
@@ -173,13 +194,10 @@
         }
     }
 
-    async function placeBid(tokenId: number, bidAmount: string | number,){
+    async function placeBid(tokenId: number, bidAmount: string | number) {
         if (selectedPokemon && bidAmount) {
             try {
-                await nftHandler.placeBid(
-                    selectedPokemon.tokenId,
-                    bidAmount,
-                );
+                await nftHandler.placeBid(selectedPokemon.tokenId, bidAmount);
                 marketplaceListings = await nftHandler.getAllListedPokemons(); // Refresh marketplace
 
                 closeModal(true);
@@ -259,16 +277,18 @@
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div
                         class="relative bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow transform hover:scale-105 duration-200"
-                        on:click={() => openModal(pokemon,false)}
+                        on:click={() => openModal(pokemon, false)}
                     >
                         {#if pokemon.auction}
                             <span
-                                class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
+                                class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10"
+                            >
                                 In auction currently
                             </span>
                         {:else if pokemon.isListed}
                             <span
-                                class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
+                                class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10"
+                            >
                                 Listed for {pokemon.listingPrice} ETH
                             </span>
                         {/if}
@@ -321,8 +341,12 @@
                         <div class="text-center mb-4">
                             {#if selectedPokemon.auction}
                                 <p class="font-semibold">
-                                    Auctioned for: {selectedPokemon.listingPrice} ETH </p>
-                                    <p>Current highest bid: {selectedPokemon.auction?.highestBid} ETH
+                                    Auctioned for: {selectedPokemon.listingPrice}
+                                    ETH
+                                </p>
+                                <p>
+                                    Current highest bid: {selectedPokemon
+                                        .auction?.highestBid} ETH
                                 </p>
                             {:else}
                                 <p class="font-semibold">
@@ -381,7 +405,7 @@
                                 type="number"
                                 step="1"
                                 min="0"
-                                defaultValue = "0"
+                                defaultValue="0"
                                 bind:value={auctionTimeHours}
                                 placeholder="e.g., 42"
                                 class="w-full border rounded px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -398,10 +422,18 @@
                                 List for Sale
                             </button>
 
-                            <button  
-                                on:click={() => auctionPokemon(listingPrice,auctionTime*60 + auctionTimeHours*3600)}
+                            <button
+                                on:click={() =>
+                                    auctionPokemon(
+                                        listingPrice,
+                                        auctionTime * 60 +
+                                            auctionTimeHours * 3600,
+                                    )}
                                 disabled={!listingPrice ||
-                                    parseFloat(listingPrice) <= 0 || auctionTime*60 + auctionTimeHours*3600 == 0}
+                                    parseFloat(listingPrice) <= 0 ||
+                                    auctionTime * 60 +
+                                        auctionTimeHours * 3600 ==
+                                        0}
                                 class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 List it for auction
@@ -422,9 +454,13 @@
             >
                 {#each marketplaceListings as pokemon}
                     {#if pokemon.owner.toLowerCase() !== nftHandler.userAddress.toLowerCase()}
-                        <div class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                        <div
+                            class="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                        >
                             {#if pokemon.auction?.isHighestBidder}
-                                <span class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
+                                <span
+                                    class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10"
+                                >
                                     You are the highest bidder
                                 </span>
                             {/if}
@@ -443,15 +479,15 @@
                                 </p>
                                 {#if pokemon.auction}
                                     <p class="text-gray-900 font-bold mt-1">
-                                        Current highest bid: 
+                                        Current highest bid:
                                     </p>
-                                    <p class="text-gray mt-1"> 
+                                    <p class="text-gray mt-1">
                                         {pokemon.auction.highestBid} ETH
                                     </p>
                                     <p class="text-gray-900 font-bold mt-1">
-                                        Remaining time: 
+                                        Remaining time:
                                     </p>
-                                    <p class="text-gray mt-1"> 
+                                    <p class="text-gray mt-1">
                                         {countdowns[pokemon.tokenId]}
                                     </p>
                                 {:else}
@@ -461,15 +497,19 @@
                                 {/if}
                                 {#if pokemon.auction}
                                     <button
-                                        on:click={() => openModal(pokemon,true)}
-                                        disabled = { countdowns[pokemon.tokenId] == "Auction ended"}
-                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                                        on:click={() =>
+                                            openModal(pokemon, true)}
+                                        disabled={countdowns[pokemon.tokenId] ==
+                                            "Auction ended"}
+                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    >
                                         Bid Now
                                     </button>
                                 {:else}
                                     <button
                                         on:click={() => buyPokemon(pokemon)}
-                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors">
+                                        class="mt-3 w-full bg-purple-500 text-white font-semibold py-2 px-4 rounded hover:bg-purple-600 transition-colors"
+                                    >
                                         Buy Now
                                     </button>
                                 {/if}
@@ -489,71 +529,77 @@
     </div>
 
     {#if showBidModal && selectedPokemon}
-    <div
-        class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-        on:click|self={() => closeModal(true)}
-    >
-        <div class="bg-white rounded-lg p-6 w-96 relative shadow-xl">
-            {#if selectedPokemon.auction?.isHighestBidder}
-                <span class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10">
-                    You are the highest bidder
-                </span>
-            {/if}
-            <button
-                on:click={() => closeModal(true)}
-                class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl leading-none"
-                aria-label="Close modal">×</button
-            >
-            <img
-                src={selectedPokemon.imageURI}
-                alt={selectedPokemon.name}
-                class="w-32 h-32 mx-auto mb-4 rounded-full border-4 border-gray-200"
-            />
-            <h3 class="text-xl font-bold text-center mb-2">
-                {selectedPokemon.name}
-            </h3>
-            <p class="text-center mb-1">
-                Level: {selectedPokemon.level}
-            </p>
-            <p class="text-center text-sm text-gray-600 mb-4">
-                Token ID: {selectedPokemon.tokenId}
-            </p>
-
-            <p class="text-center text-sm text-gray-600 mb-4">
-                Remaining time: {countdowns[selectedPokemon.tokenId]}
-            </p>
-
-            <h3 class="text-xl font-bold text-center mb-2">
-                Current Highest bid: {selectedPokemon.auction?.highestBid}
-            </h3>
-            <p class="text-center text-sm text-gray-600 mb-4">
-                Min bid: {selectedPokemon.listingPrice}
-            </p>
-
-            <div class="mb-2">
-                <label
-                    for="bid-price"
-                    class="block text-sm font-medium text-gray-700 mb-1"
-                    >Bid (ETH):</label
+        <div
+            class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+            on:click|self={() => closeModal(true)}
+        >
+            <div class="bg-white rounded-lg p-6 w-96 relative shadow-xl">
+                {#if selectedPokemon.auction?.isHighestBidder}
+                    <span
+                        class="absolute top-2 left-2 bg-yellow-300 text-yellow-800 text-xs font-semibold px-2 py-1 rounded z-10"
+                    >
+                        You are the highest bidder
+                    </span>
+                {/if}
+                <button
+                    on:click={() => closeModal(true)}
+                    class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                    aria-label="Close modal">×</button
                 >
-                <input
-                    id="bid-price"
-                    type="number"
-                    step="0.001"
-                    min={Math.max(parseFloat(selectedPokemon.auction?.highestBid),parseFloat(selectedPokemon.listingPrice))}
-                    bind:value={bid}
-                    placeholder="e.g., 0.1"
-                    class="w-full border rounded px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                <img
+                    src={selectedPokemon.imageURI}
+                    alt={selectedPokemon.name}
+                    class="w-32 h-32 mx-auto mb-4 rounded-full border-4 border-gray-200"
                 />
-            </div>
-            <button
-                on:click={() => placeBid(selectedPokemon.tokenId,bid)}
-                disabled={ countdowns[selectedPokemon.tokenId] == "Auction ended" }
-                class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                Bid
-            </button>
-        </div>
-    </div>
-    {/if}
+                <h3 class="text-xl font-bold text-center mb-2">
+                    {selectedPokemon.name}
+                </h3>
+                <p class="text-center mb-1">
+                    Level: {selectedPokemon.level}
+                </p>
+                <p class="text-center text-sm text-gray-600 mb-4">
+                    Token ID: {selectedPokemon.tokenId}
+                </p>
 
+                <p class="text-center text-sm text-gray-600 mb-4">
+                    Remaining time: {countdowns[selectedPokemon.tokenId]}
+                </p>
+
+                <h3 class="text-xl font-bold text-center mb-2">
+                    Current Highest bid: {selectedPokemon.auction?.highestBid}
+                </h3>
+                <p class="text-center text-sm text-gray-600 mb-4">
+                    Min bid: {selectedPokemon.listingPrice}
+                </p>
+
+                <div class="mb-2">
+                    <label
+                        for="bid-price"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        >Bid (ETH):</label
+                    >
+                    <input
+                        id="bid-price"
+                        type="number"
+                        step="0.001"
+                        min={Math.max(
+                            parseFloat(selectedPokemon.auction?.highestBid),
+                            parseFloat(selectedPokemon.listingPrice),
+                        )}
+                        bind:value={bid}
+                        placeholder="e.g., 0.1"
+                        class="w-full border rounded px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                </div>
+                <button
+                    on:click={() => placeBid(selectedPokemon.tokenId, bid)}
+                    disabled={countdowns[selectedPokemon.tokenId] ==
+                        "Auction ended"}
+                    class="w-full bg-green-500 text-white font-semibold py-2 rounded hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Bid
+                </button>
+            </div>
+        </div>
+    {/if}
 </div>
