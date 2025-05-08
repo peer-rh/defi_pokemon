@@ -232,7 +232,10 @@ Features Patrik Dobcsanyi
    - Auction pokemon
    - Design updates
    - Pause function
-   - 
+   - Video
 
 ## Credits
 - https://github.com/cristobalmitchell/pokedex for pokemon data
+
+## AI Tools
+- We have used ChatGPT and CoPilot for our project, mostly in frontend tasks and in helping to find bugs.
