@@ -273,7 +273,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         // Effects
         delete _listings[tokenId];
         // Interaction
-        safeTransferFrom(seller, msg.sender, tokenId);
+        _transfer(seller, msg.sender, tokenId);
         (bool success, ) = payable(seller).call{value: price}("");
         require(success, "Payment to seller failed");
         // Refund excess payment
