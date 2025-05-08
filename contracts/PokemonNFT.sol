@@ -81,7 +81,7 @@ contract PokemonNFT is ERC721, Ownable, ReentrancyGuard {
         address player,
         uint256 baseIdx,
         uint256 level
-    ) public onlyOwner whenNotPaused returns (uint256) {
+    ) public onlyOwner whenNotPaused() returns (uint256) {
         _tokenIds += 1; // Manual counter instead of Counters.sol
         uint256 newPokemonId = _tokenIds;
 

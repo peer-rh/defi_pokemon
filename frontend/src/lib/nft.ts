@@ -67,7 +67,11 @@ export class NFTHandler {
         return isPaused;
     }
     async togglePaused(){
+        let isPaused = await this.contract.isPaused();
+        console.log('A',isPaused);
         await this.contract.togglePause();
+        isPaused = await this.contract.isPaused();
+        console.log('B',isPaused);
     }
 
     async fetchUserNFTs() {

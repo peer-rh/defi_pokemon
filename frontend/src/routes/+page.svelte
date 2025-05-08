@@ -59,7 +59,7 @@
     async function togglePause(){
         try{
             await nftHandler.togglePaused();
-            isPaused = await nftHandler.isPaused();
+            isPaused = !isPaused;
             toasts.success(`Successfully set contract paused state to ${isPaused}!`);
         }catch(error){
             console.error("Error toggling", error);
